@@ -6,14 +6,7 @@ import { FaInstagram, FaLinkedin, FaEnvelope, FaWhatsapp, FaFacebook } from "rea
 // ─── Configuration ──────────────────────────────────────────────────────────
 const FRAME_COUNT = 240;
 const LAST_FRAME = FRAME_COUNT - 1;
-
-const PIN_FRAME = 72;
-const RESUME_FRAME = 73;
-
-const PHASE1_VH = 250;
-const PHASE2_VH = 1500;
-const PHASE3_VH = 600;
-const TOTAL_VH = PHASE1_VH + PHASE2_VH + PHASE3_VH;
+const TOTAL_VH = 2500; // Increased for a smoother story pace over 240 frames
 
 const framePath = (index: number): string =>
   `/frames/frame_${index.toString().padStart(6, "0")}.jpg`;
@@ -31,39 +24,32 @@ export default function ScrollFrameSequence() {
   const [loadPercent, setLoadPercent] = useState(0);
   const [ready, setReady] = useState(false);
 
-  // ── Overlay Refs ──
-  const p1ContainerRef = useRef<HTMLDivElement>(null);
-  const p1EyebrowRef = useRef<HTMLDivElement>(null);
-  const p1State1Ref = useRef<HTMLDivElement>(null);
-  const p1State1H1Ref = useRef<HTMLHeadingElement>(null);
-  const p1State1P1Ref = useRef<HTMLParagraphElement>(null);
-  const p1State1P2Ref = useRef<HTMLParagraphElement>(null);
-  const p1State2Ref = useRef<HTMLDivElement>(null);
+  // ── REFS FOR STORY BLOCKS ──
+  // Chapter 1: Portrait (0-80)
+  const heroRef = useRef<HTMLDivElement>(null);
+  const theBeginningRef = useRef<HTMLDivElement>(null);
+  const startedWithAttentionRef = useRef<HTMLDivElement>(null);
+  const managingBrandsRef = useRef<HTMLDivElement>(null);
 
-  const p2InnerRef = useRef<HTMLDivElement>(null);
-  const p2Ch1 = useRef<HTMLDivElement>(null);
-  const p2Ch2 = useRef<HTMLDivElement>(null);
-  const p2Ch3 = useRef<HTMLDivElement>(null);
-  const p2Ch4 = useRef<HTMLDivElement>(null);
-  const p2Stats = useRef<HTMLDivElement>(null);
-  const p2Close = useRef<HTMLDivElement>(null);
-  const p2AdsContainer = useRef<HTMLDivElement>(null);
-  const p2AdsScroll = useRef<HTMLDivElement>(null);
+  // Chapter 2: Laptop (85-165)
+  const execToMarketerRef = useRef<HTMLDivElement>(null);
+  const contentToConversionRef = useRef<HTMLDivElement>(null);
+  const hardPartRef = useRef<HTMLDivElement>(null);
+  const funnelRef = useRef<HTMLDivElement>(null);
+  const metaRef = useRef<HTMLDivElement>(null);
+  const googleRef = useRef<HTMLDivElement>(null);
+  const numbersRef = useRef<HTMLDivElement>(null);
 
-  const p3StrategyRef = useRef<HTMLDivElement>(null);
-  const p3S1 = useRef<HTMLDivElement>(null);
-  const p3S2 = useRef<HTMLDivElement>(null);
-  const p3S3 = useRef<HTMLDivElement>(null);
+  // Chapter 3: Phone (165-240)
+  const enoughAboutMeRef = useRef<HTMLDivElement>(null);
+  const caseStudyRef = useRef<HTMLDivElement>(null);
+  const strategyRef = useRef<HTMLDivElement>(null);
+  const campaignSystemRef = useRef<HTMLDivElement>(null);
+  const metricsRef = useRef<HTMLDivElement>(null);
+  const yearsLaterRef = useRef<HTMLDivElement>(null);
+  const finalCtaRef = useRef<HTMLDivElement>(null);
 
-  const p3CasesRef = useRef<HTMLDivElement>(null);
-  
-  const p3PhoneCtaRef = useRef<HTMLDivElement>(null);
-  const p3P1 = useRef<HTMLDivElement>(null);
-  const p3P2 = useRef<HTMLDivElement>(null);
-
-  const p3FinalCtaRef = useRef<HTMLDivElement>(null);
-
-  // ── Draw frame onto canvas (cover-fit) ──
+  // ── Draw frame onto canvas ──
   const drawFrame = useCallback(
     (ctx: CanvasRenderingContext2D, frameIndex: number, cssW: number, cssH: number) => {
       const loaded = loadedRef.current;
@@ -104,262 +90,6 @@ export default function ScrollFrameSequence() {
     let cssWidth = 0;
     let cssHeight = 0;
 
-    let viewportH = window.innerHeight;
-    let phase1Px = 0;
-    let phase2Px = 0;
-    let totalPx = 0;
-
-    const computeBoundaries = () => {
-      viewportH = window.innerHeight;
-      phase1Px = (PHASE1_VH / 100) * viewportH;
-      phase2Px = phase1Px + (PHASE2_VH / 100) * viewportH;
-      totalPx = (TOTAL_VH / 100) * viewportH;
-    };
-
-    computeBoundaries();
-
-    const getScrollTop = () => -section.getBoundingClientRect().top;
-
-    // Phase 1: 0 -> phase1Px (Frames 0 -> 72)
-    // Phase 2: phase1Px -> phase2Px (Frame 72, internal p2Progress 0 -> 1)
-    // Phase 3: phase2Px -> totalPx - viewportH (Frames 73 -> 239)
-
-    const draw = () => {
-      const st = getScrollTop();
-      
-      let frameIndex = 0;
-      let p2 = 0;
-      let phase = 1;
-
-      if (st < 0) {
-        frameIndex = 0;
-        phase = 1;
-      } else if (st < phase1Px) {
-        phase = 1;
-        const p1Progress = st / phase1Px;
-        frameIndex = Math.floor(p1Progress * PIN_FRAME);
-      } else if (st < phase2Px) {
-        phase = 2;
-        frameIndex = PIN_FRAME;
-        p2 = (st - phase1Px) / (phase2Px - phase1Px);
-      } else {
-        phase = 3;
-        const scrollSpace = totalPx - phase2Px - viewportH;
-        const p3Progress = clamp((st - phase2Px) / scrollSpace, 0, 1);
-        frameIndex = RESUME_FRAME + Math.floor(p3Progress * (LAST_FRAME - RESUME_FRAME));
-      }
-
-      frameIndex = clamp(frameIndex, 0, LAST_FRAME);
-      drawFrame(ctx, frameIndex, cssWidth, cssHeight);
-
-      // --- APPLY ANIMATIONS BASED ON FRAME INDEX AND PHASE ---
-
-      // Phase 1 elements (Frames 0 - 71)
-      if (p1ContainerRef.current) {
-        // Fade out the entire container smoothly at the end of Phase 1
-        if (frameIndex > 65) {
-          const t = clamp((frameIndex - 65) / 7, 0, 1);
-          p1ContainerRef.current.style.opacity = String(1 - t);
-        } else {
-          p1ContainerRef.current.style.opacity = "1";
-        }
-
-        // Eyebrow label: 0 to 44 (Fades out before 45)
-        if (p1EyebrowRef.current) {
-          const end = 44;
-          const outDuration = 6;
-          if (frameIndex > end) {
-            p1EyebrowRef.current.style.opacity = "0";
-          } else if (frameIndex > end - outDuration) {
-            const t = (frameIndex - (end - outDuration)) / outDuration;
-            p1EyebrowRef.current.style.opacity = String(1 - t);
-          } else {
-            p1EyebrowRef.current.style.opacity = "1";
-          }
-        }
-        
-        // State 1: 0 to 23 (Visible on load, animate out on first scroll)
-        if (p1State1Ref.current && p1State1H1Ref.current && p1State1P1Ref.current && p1State1P2Ref.current) {
-          const end = 23;
-          const outDuration = 6;
-          
-          if (frameIndex > end) {
-             p1State1Ref.current.style.opacity = "0";
-          } else if (frameIndex > end - outDuration) {
-             const t = (frameIndex - (end - outDuration)) / outDuration;
-             p1State1Ref.current.style.opacity = String(1 - t);
-             
-             // Break apart effect
-             p1State1H1Ref.current.style.transform = `translateX(${t * 40}px) scale(${1 + 0.15 * t})`;
-             p1State1H1Ref.current.style.filter = `blur(${t * 8}px)`;
-
-             p1State1P1Ref.current.style.transform = `translate(${-t * 20}px, ${t * 20}px)`;
-             p1State1P1Ref.current.style.filter = `blur(${t * 5}px)`;
-
-             p1State1P2Ref.current.style.transform = `translate(${-t * 30}px, ${t * 40}px)`;
-             p1State1P2Ref.current.style.filter = `blur(${t * 5}px)`;
-          } else {
-             // Fully visible immediately on frame 0
-             p1State1Ref.current.style.opacity = "1";
-             p1State1H1Ref.current.style.transform = "translateX(0) scale(1)";
-             p1State1H1Ref.current.style.filter = "blur(0)";
-             p1State1P1Ref.current.style.transform = "translate(0, 0)";
-             p1State1P1Ref.current.style.filter = "blur(0)";
-             p1State1P2Ref.current.style.transform = "translate(0, 0)";
-             p1State1P2Ref.current.style.filter = "blur(0)";
-          }
-        }
-
-        // State 2: 24 to 44 (Animate in on second scroll)
-        if (p1State2Ref.current) {
-          const start = 24;
-          const end = 44;
-          const inDuration = 6;
-          const outDuration = 6;
-          
-          if (frameIndex < start) {
-            p1State2Ref.current.style.opacity = "0";
-            p1State2Ref.current.style.transform = "translateY(30px) scale(0.95)";
-            p1State2Ref.current.style.filter = "blur(10px)";
-          } else if (frameIndex < start + inDuration) {
-            const t = (frameIndex - start) / inDuration;
-            p1State2Ref.current.style.opacity = String(t);
-            p1State2Ref.current.style.transform = `translateY(${(1 - t) * 30}px) scale(${0.95 + 0.05 * t})`;
-            p1State2Ref.current.style.filter = `blur(${(1 - t) * 10}px)`;
-          } else if (frameIndex > end - outDuration) {
-            const t = (frameIndex - (end - outDuration)) / outDuration;
-            p1State2Ref.current.style.opacity = String(1 - t);
-            p1State2Ref.current.style.transform = `translateY(${-t * 30}px) scale(${1 + 0.05 * t})`;
-            p1State2Ref.current.style.filter = `blur(${t * 10}px)`;
-          } else {
-            p1State2Ref.current.style.opacity = "1";
-            p1State2Ref.current.style.transform = "translateY(0) scale(1)";
-            p1State2Ref.current.style.filter = "blur(0)";
-          }
-        }
-      }
-
-      // Phase 2 elements (Pinned at Frame 72)
-      // The glass panel slides in from the right during Phase 1 (Frames 48-71)
-      if (p2InnerRef.current) {
-        if (phase === 1) {
-          if (frameIndex < 48) {
-            p2InnerRef.current.style.transform = "translateX(100%)";
-            p2InnerRef.current.style.opacity = "0";
-          } else if (frameIndex <= 71) {
-            const t = (frameIndex - 48) / (71 - 48);
-            const easeOut = 1 - Math.pow(1 - t, 3);
-            p2InnerRef.current.style.transform = `translateX(${(1 - easeOut) * 100}%)`;
-            p2InnerRef.current.style.opacity = String(Math.min(1, t * 2));
-          }
-        } else if (phase === 2) {
-          p2InnerRef.current.style.transform = "translateX(0%)";
-          p2InnerRef.current.style.opacity = "1";
-        } else {
-          // Fade out slightly in phase 3 or keep hidden
-          const scrollSpace = totalPx - phase2Px - viewportH;
-          const p3Progress = clamp((st - phase2Px) / scrollSpace, 0, 1);
-          p2InnerRef.current.style.opacity = p3Progress > 0.05 ? "0" : String(1 - (p3Progress / 0.05));
-          p2InnerRef.current.style.transform = "translateX(0%)";
-        }
-
-        const setCh = (ref: any, start: number, end: number, currentProgress: number) => {
-          if (!ref.current) return;
-          if (currentProgress >= start && currentProgress <= end) {
-            const fade = currentProgress < start + 0.05 ? (currentProgress - start) / 0.05 : currentProgress > end - 0.05 ? 1 - (currentProgress - (end - 0.05)) / 0.05 : 1;
-            ref.current.style.opacity = String(fade);
-            ref.current.style.transform = `translateY(${(1-fade)*30}px)`;
-          } else {
-            ref.current.style.opacity = "0";
-            ref.current.style.transform = `translateY(30px)`;
-          }
-        };
-
-        if (phase === 1) {
-          setCh(p2Ch1, -1, 2, 0); // fully visible
-          setCh(p2Ch2, 2, 2, 0);
-          setCh(p2Ch3, 2, 2, 0);
-          setCh(p2Ch4, 2, 2, 0);
-          setCh(p2Stats, 2, 2, 0);
-          setCh(p2Close, 2, 2, 0);
-          if (p2AdsContainer.current) p2AdsContainer.current.style.opacity = "0";
-        } else if (phase === 2) {
-          setCh(p2Ch1, 0.00, 0.08, p2);
-          setCh(p2Ch2, 0.08, 0.16, p2);
-          setCh(p2Ch3, 0.16, 0.24, p2);
-          setCh(p2Ch4, 0.24, 0.32, p2);
-          setCh(p2Stats, 0.32, 0.45, p2);
-          setCh(p2Close, 0.45, 0.55, p2);
-
-          if (p2AdsContainer.current && p2AdsScroll.current) {
-            const startAds = 0.55;
-            const endAds = 1.0;
-            if (p2 >= startAds && p2 <= endAds) {
-              const localP2 = (p2 - startAds) / (endAds - startAds);
-              // Fade in smoothly at the start
-              p2AdsContainer.current.style.opacity = localP2 < 0.05 ? String(localP2 / 0.05) : "1";
-              // Scroll effect inside frosted glass
-              p2AdsScroll.current.style.transform = `translateY(-${localP2 * 75}%)`;
-            } else {
-              p2AdsContainer.current.style.opacity = "0";
-            }
-          }
-        }
-      }
-
-      // Phase 3 elements (Frames 73 - 239)
-      if (p3StrategyRef.current) {
-        const setStrat = (ref: any, start: number, end: number) => {
-          if (!ref.current) return;
-          if (frameIndex >= start && frameIndex <= end) {
-            const fade = frameIndex < start + 3 ? (frameIndex - start)/3 : frameIndex > end - 3 ? 1 - (frameIndex - (end-3))/3 : 1;
-            ref.current.style.opacity = String(fade);
-            ref.current.style.transform = `translateX(${(1-fade)*20}px)`;
-          } else {
-            ref.current.style.opacity = "0";
-          }
-        };
-        setStrat(p3S1, 100, 110);
-        setStrat(p3S2, 111, 121);
-        setStrat(p3S3, 122, 132);
-      }
-
-      if (p3CasesRef.current) {
-        const start = 133, end = 159;
-        const visible = frameIndex >= start && frameIndex <= end;
-        const fade = frameIndex < start + 5 ? (frameIndex - start)/5 : frameIndex > end - 5 ? 1 - (frameIndex - (end-5))/5 : 1;
-        p3CasesRef.current.style.opacity = visible ? String(fade) : "0";
-      }
-
-      if (p3PhoneCtaRef.current) {
-        const setPhone = (ref: any, start: number, end: number) => {
-          if (!ref.current) return;
-          if (frameIndex >= start && frameIndex <= end) {
-            const fade = frameIndex < start + 2 ? (frameIndex - start)/2 : frameIndex > end - 2 ? 1 - (frameIndex - (end-2))/2 : 1;
-            ref.current.style.opacity = String(fade);
-          } else {
-            ref.current.style.opacity = "0";
-          }
-        };
-        setPhone(p3P1, 160, 167);
-        setPhone(p3P2, 168, 175);
-      }
-
-      if (p3FinalCtaRef.current) {
-        const start = 176, end = 239;
-        const visible = frameIndex >= start && frameIndex <= end;
-        const fade = frameIndex < start + 10 ? (frameIndex - start)/10 : 1;
-        p3FinalCtaRef.current.style.opacity = visible ? String(fade) : "0";
-        p3FinalCtaRef.current.style.pointerEvents = visible ? "auto" : "none";
-      }
-    };
-
-    const onScroll = () => {
-      if (!cancelled) {
-        rafId = requestAnimationFrame(draw);
-      }
-    };
-
     const onResize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       cssWidth = canvas.clientWidth;
@@ -367,8 +97,156 @@ export default function ScrollFrameSequence() {
       canvas.width = Math.round(cssWidth * dpr);
       canvas.height = Math.round(cssHeight * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      computeBoundaries();
       draw();
+    };
+
+    const draw = () => {
+      const st = -section.getBoundingClientRect().top;
+      const totalScroll = (TOTAL_VH / 100) * window.innerHeight - window.innerHeight;
+      
+      const progress = clamp(st / totalScroll, 0, 1);
+      const frameIndex = clamp(Math.floor(progress * LAST_FRAME), 0, LAST_FRAME);
+      
+      drawFrame(ctx, frameIndex, cssWidth, cssHeight);
+
+      // Helper function to animate story blocks
+      // start: frame to begin fade in
+      // in: duration of fade in
+      // hold: duration to stay visible
+      // out: duration of fade out
+      const setStyles = (
+        ref: React.RefObject<HTMLDivElement | null>, 
+        start: number, fadeIn: number, hold: number, fadeOut: number, 
+        inX = 0, inY = 20, outX = 0, outY = -20
+      ) => {
+        if (!ref.current) return;
+        const fi = frameIndex;
+        if (fi < start) {
+          ref.current.style.opacity = "0";
+          ref.current.style.transform = `translate(${inX}px, ${inY}px)`;
+          ref.current.style.pointerEvents = "none";
+        } else if (fi < start + fadeIn) {
+          const t = (fi - start) / fadeIn;
+          ref.current.style.opacity = String(t);
+          ref.current.style.transform = `translate(${(1 - t) * inX}px, ${(1 - t) * inY}px)`;
+          ref.current.style.pointerEvents = "none";
+        } else if (fi <= start + fadeIn + hold) {
+          ref.current.style.opacity = "1";
+          ref.current.style.transform = `translate(0px, 0px)`;
+          ref.current.style.pointerEvents = "auto";
+        } else if (fi < start + fadeIn + hold + fadeOut) {
+          const t = (fi - (start + fadeIn + hold)) / fadeOut;
+          ref.current.style.opacity = String(1 - t);
+          ref.current.style.transform = `translate(${t * outX}px, ${t * outY}px)`;
+          ref.current.style.pointerEvents = "none";
+        } else {
+          ref.current.style.opacity = "0";
+          ref.current.style.transform = `translate(${outX}px, ${outY}px)`;
+          ref.current.style.pointerEvents = "none";
+        }
+      };
+
+      // ── CHAPTER 1: PORTRAIT (0 - 80) ──
+      setStyles(heroRef, 0, 0, 15, 10);
+      setStyles(theBeginningRef, 25, 5, 10, 5, -60, 0, -60, 0); // left slide
+      setStyles(startedWithAttentionRef, 45, 5, 10, 5, 60, 0, 60, 0); // right slide
+      setStyles(managingBrandsRef, 65, 5, 10, 5, 60, 0, 60, 0); // right slide
+
+      // ── CHAPTER 2: LAPTOP (85 - 165) ──
+      setStyles(execToMarketerRef, 85, 2, 18, 5, 0, 0, -40, 0); // container fades in fast, stays put, slides left on exit
+      setStyles(contentToConversionRef, 106, 3, 6, 3); // Slightly longer hold so it's not too fast
+      setStyles(hardPartRef, 116, 3, 4, 3);
+      setStyles(funnelRef, 126, 4, 16, 4);
+      setStyles(metaRef, 126, 4, 5, 4);
+      // Previous frame googleRef finishes at 149 (136 + 4 + 5 + 4)
+      setStyles(googleRef, 136, 4, 5, 4);
+      
+      // Giant numbers stats grid (fades in right after Google Ads finishes)
+      // Finishes at 165 (149 + 4 + 8 + 4)
+      setStyles(numbersRef, 149, 4, 8, 4);
+
+      // ── CHAPTER 3: PHONE (165 - 240) ──
+      setStyles(enoughAboutMeRef, 165, 5, 10, 5);
+      setStyles(caseStudyRef, 175, 10, 10, 5);
+      setStyles(strategyRef, 195, 5, 10, 5);
+      setStyles(campaignSystemRef, 205, 5, 10, 5);
+      setStyles(metricsRef, 210, 5, 10, 5);
+      setStyles(yearsLaterRef, 220, 5, 10, 5);
+      
+      // Final CTA stays visible till end of scroll (frame 240+)
+      setStyles(finalCtaRef, 230, 5, 10, 0);
+
+      // ── SEQUENTIAL INTERNAL ANIMATIONS ──
+
+      // Timeline Steps (Chapter 2)
+      document.querySelectorAll('.timeline-item').forEach((el, i) => {
+        const start = 86 + i * 4;
+        const e = el as HTMLElement;
+        e.style.opacity = frameIndex >= start ? "1" : "0";
+        e.style.transform = frameIndex >= start ? "translateX(0)" : "translateX(-20px)";
+        e.style.transition = "all 0.4s cubic-bezier(0.16, 1, 0.3, 1)";
+      });
+
+      document.querySelectorAll('.timeline-line').forEach((el, i) => {
+        const start = 86 + i * 4;
+        const duration = 4;
+        const e = el as HTMLElement;
+        const progress = clamp((frameIndex - start) / duration, 0, 1);
+        e.style.transform = `scaleY(${progress})`;
+        e.style.transformOrigin = "top";
+      });
+      
+      // Content Became Conversion
+      document.querySelectorAll('.conv-word').forEach((el, i) => {
+        const start = 100 + i * 2;
+        const e = el as HTMLElement;
+        e.style.opacity = frameIndex >= start ? "1" : "0";
+        e.style.transform = frameIndex >= start ? "translateY(0)" : "translateY(10px)";
+        e.style.transition = "all 0.3s ease-out";
+      });
+
+      // Funnel steps
+      document.querySelectorAll('.funnel-step').forEach((el, i) => {
+        const start = 126 + i * 1.5;
+        const e = el as HTMLElement;
+        e.style.opacity = frameIndex >= start ? "1" : "0";
+        e.style.transform = frameIndex >= start ? "translateX(0)" : "translateX(-15px)";
+        e.style.transition = "all 0.3s ease-out";
+      });
+
+      // Campaign System Steps
+      document.querySelectorAll('.system-step').forEach((el, i) => {
+        const start = 205 + i * 1.5;
+        const e = el as HTMLElement;
+        e.style.opacity = frameIndex >= start ? "1" : "0";
+        e.style.transform = frameIndex >= start ? "translateY(0)" : "translateY(10px)";
+        e.style.transition = "all 0.3s ease-out";
+      });
+
+      // Metrics Thinking
+      document.querySelectorAll('.metric-step').forEach((el, i) => {
+        const start = 210 + i * 1.5;
+        const e = el as HTMLElement;
+        e.style.opacity = frameIndex >= start ? "1" : "0";
+        e.style.transform = frameIndex >= start ? "translateY(0)" : "translateY(10px)";
+        e.style.transition = "all 0.3s ease-out";
+      });
+      
+      // Case Study Inner Progress
+      if (caseStudyRef.current) {
+        const csProgress = clamp((frameIndex - 175) / 20, 0, 1);
+        // We can drive the case study scroll based on csProgress 0 to 1
+        const csScroll = caseStudyRef.current.querySelector('.cs-scroll') as HTMLElement;
+        if (csScroll) {
+          csScroll.style.transform = `translateY(-${csProgress * 150}vh)`;
+        }
+      }
+    };
+
+    const onScroll = () => {
+      if (!cancelled) {
+        rafId = requestAnimationFrame(draw);
+      }
     };
 
     const loadSingleFrame = (index: number): Promise<void> =>
@@ -395,15 +273,10 @@ export default function ScrollFrameSequence() {
       setReady(true);
       onResize();
 
-      await loadSingleFrame(PIN_FRAME);
-      totalLoaded++;
-      setLoadPercent(Math.round((totalLoaded / FRAME_COUNT) * 100));
-
       let nextIndex = 1;
       const worker = async () => {
         while (!cancelled && nextIndex < FRAME_COUNT) {
           const idx = nextIndex++;
-          if (idx === PIN_FRAME) continue;
           await loadSingleFrame(idx);
           totalLoaded++;
           setLoadPercent(Math.round((totalLoaded / FRAME_COUNT) * 100));
@@ -444,208 +317,342 @@ export default function ScrollFrameSequence() {
           role="img"
         />
 
+        {/* Global Left Shadow Gradient */}
+        <div className="absolute inset-0 w-[85%] md:w-[65%] bg-gradient-to-r from-black/90 via-black/40 to-transparent pointer-events-none z-[5]" />
+
         {/* ══════════════════════════════════════════════════════════════
-            PHASE 1: HERO & JOURNEY (0 - 71)
+            CHAPTER 1: PORTRAIT / ATTENTION (Frames 0-80)
             ══════════════════════════════════════════════════════════════ */}
-        <div className="hero-vignette" />
-
-        <div ref={p1ContainerRef} className="frame-overlay fo-content fo-left will-change-transform z-10 pointer-events-none">
-          <div ref={p1EyebrowRef} className="hero-eyebrow mb-8 will-change-transform">
-            GAURAV KAMBLE / PERFORMANCE MARKETER
+        <div ref={heroRef} className="safe-left will-change-transform z-10">
+          <div className="story-label">PERFORMANCE MARKETER | META ADS + GOOGLE ADS</div>
+          <h1 className="story-h2">
+            I DON&apos;T JUST RUN ADS.<br />
+            <span className="accent">I BUILD THE SYSTEM</span><br />
+            BEHIND THEM.
+          </h1>
+          <p className="story-p mb-8">
+            4+ years turning clicks, searches and attention into leads, sales and measurable growth.
+          </p>
+          <div className="flex gap-4 pointer-auto">
+            <a href="mailto:myselfgauravkamble@gmail.com" className="cta-btn">LET&apos;S TALK →</a>
           </div>
-          
-          <div className="relative w-full h-[400px]">
-             {/* State 1 */}
-             <div ref={p1State1Ref} className="absolute inset-0 flex flex-col justify-start will-change-transform origin-left">
-               <h1 ref={p1State1H1Ref} className="hero-h1 leading-[0.9] will-change-transform origin-left">
-                 FIRST, I LEARNED<br/>HOW TO GET<br/><span className="accent">ATTENTION.</span>
-               </h1>
-               <p ref={p1State1P1Ref} className="font-body text-white/70 text-lg mt-8 max-w-md tracking-wide will-change-transform">
-                 Started with content and social media.<br/>Stayed curious about what makes people stop.
-               </p>
-               <p ref={p1State1P2Ref} className="font-body text-white/40 text-xs tracking-[0.2em] mt-6 uppercase will-change-transform">
-                 CONTENT × STRATEGY × PERFORMANCE
-               </p>
-             </div>
+        </div>
 
-             {/* State 2 */}
-             <div ref={p1State2Ref} className="absolute inset-0 flex flex-col justify-start will-change-transform origin-left" style={{opacity: 0}}>
-               <h1 className="hero-h1 leading-[0.9]">
-                 THEN I LEARNED<br/>HOW TO MAKE IT<br/><span className="accent">PAY.</span>
-               </h1>
-             </div>
+        <div ref={theBeginningRef} className="safe-left will-change-transform z-10">
+          <div className="story-label">THE BEGINNING</div>
+          <h2 className="story-h2">I DIDN&apos;T START<br />WITH ADS.</h2>
+        </div>
+
+        <div ref={startedWithAttentionRef} className="safe-right will-change-transform z-10">
+          <h2 className="story-h2">I STARTED WITH<br />ATTENTION.</h2>
+          <p className="story-p">Social media taught me how brands communicate, how audiences behave and what makes people stop scrolling.</p>
+        </div>
+
+        <div ref={managingBrandsRef} className="safe-right will-change-transform z-10">
+          <h2 className="story-h2 text-2xl md:text-4xl">THEN I STARTED<br />MANAGING BRANDS.</h2>
+          <p className="story-p text-accent font-display text-3xl md:text-4xl tracking-widest font-bold mt-2 uppercase whitespace-nowrap">50+ brands as a Social Media Manager.</p>
+          <div className="mt-8 font-display font-bold text-2xl md:text-3xl text-white/50 space-y-4">
+            <div className="transition-all duration-300 hover:text-white hover:translate-x-2 hover:scale-105 origin-left cursor-default drop-shadow-sm hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">DIFFERENT BRANDS.</div>
+            <div className="transition-all duration-300 hover:text-white hover:translate-x-2 hover:scale-105 origin-left cursor-default drop-shadow-sm hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">DIFFERENT AUDIENCES.</div>
+            <div className="transition-all duration-300 hover:text-white hover:translate-x-2 hover:scale-105 origin-left cursor-default drop-shadow-sm hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">DIFFERENT PROBLEMS.</div>
           </div>
         </div>
 
         {/* ══════════════════════════════════════════════════════════════
-            PHASE 2: PINNED ABOUT & STATS (72)
+            CHAPTER 2: LAPTOP / EXECUTION (Frames 80-160)
             ══════════════════════════════════════════════════════════════ */}
-        <div ref={p2InnerRef} className="frame-overlay fo-right will-change-transform z-20 pointer-events-none">
-          <div className="pinned-content-block pointer-events-auto">
+        <div ref={execToMarketerRef} className="safe-left will-change-transform z-20 pointer-auto">
+          <div className="relative w-full max-w-lg">
             
-            <div ref={p2Ch1} className="absolute inset-0 px-16 flex flex-col justify-center items-start text-left will-change-transform">
-              <h2 className="pinned-h2">I DIDN&apos;T START<br />WITH ADS.</h2>
-              <p className="pinned-p">I started with attention. As a Social Media Executive, I learned how brands communicate, create communities, and stop the scroll.</p>
-            </div>
-
-            <div ref={p2Ch2} className="absolute inset-0 px-16 flex flex-col justify-center items-start text-left will-change-transform">
-              <h2 className="pinned-h2">BEYOND<br /><span className="text-white">CONTENT.</span></h2>
-              <p className="pinned-p">As I grew into a Social Media Manager, strategy became the focus. It wasn&apos;t just about posting anymore—it was about positioning, campaigns, and presence.</p>
-            </div>
-
-            <div ref={p2Ch3} className="absolute inset-0 px-16 flex flex-col justify-center items-start text-left will-change-transform">
-              <h2 className="pinned-h2">THEN I FOUND<br />THE NUMBERS.</h2>
-              <p className="pinned-p">That led me to Performance Marketing. Today, I work across Google Ads and Meta Ads, turning creative ideas into data-driven outcomes and measurable ROAS.</p>
-            </div>
-
-            <div ref={p2Ch4} className="absolute inset-0 px-16 flex flex-col justify-center items-start text-left will-change-transform">
-              <h2 className="pinned-h2">CREATE ATTENTION.<br />TURN IT INTO <span className="text-white">ACTION.</span></h2>
-              <p className="pinned-p">For the last 4 years, I&apos;ve helped transform ideas into content, campaigns into conversations, and ad spend into real business growth.</p>
-            </div>
-
-            <div ref={p2Stats} className="absolute inset-0 px-16 flex flex-col justify-center items-start text-left will-change-transform">
-              <h2 className="pinned-h2 text-2xl mb-12">THE METRICS BEHIND THE JOURNEY</h2>
-              <div className="stat-container">
-                <div className="stat-item"><span className="stat-num text-white">₹8L+</span><span className="stat-label">Monthly Ad Spend Managed</span></div>
-                <div className="stat-item"><span className="stat-num">50+</span><span className="stat-label">Brands Managed</span></div>
-                <div className="stat-item"><span className="stat-num">20K+</span><span className="stat-label">Content Pieces Delivered</span></div>
-                <div className="stat-item"><span className="stat-num">20+</span><span className="stat-label">Ads Projects</span></div>
+            <div className="relative z-10 space-y-0">
+              
+              {/* Point 1 */}
+              <div className="flex gap-6 timeline-item group/item cursor-pointer transition-all duration-300 hover:scale-105 origin-left">
+                <div className="flex flex-col items-center">
+                  <div className="relative flex items-center justify-center w-6 h-6 mt-1.5">
+                    <div className="absolute inset-0 rounded-full bg-white/5 group-hover/item:bg-accent/20 group-hover/item:animate-ping transition-all duration-300" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-white/40 group-hover/item:bg-accent group-hover/item:shadow-[0_0_15px_rgba(232,80,28,1)] transition-all duration-300 relative z-10" />
+                  </div>
+                  <div className="relative w-[2px] h-20 bg-white/10 mt-1.5 rounded-full overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-full bg-accent shadow-[0_0_10px_rgba(232,80,28,1)] timeline-line transition-transform duration-75" />
+                  </div>
+                </div>
+                <div className="pb-8 pt-1">
+                  <div className="text-[11px] md:text-sm font-bold tracking-[0.2em] text-white/50 group-hover/item:text-accent transition-colors duration-300">SOCIAL MEDIA EXECUTIVE</div>
+                  <h2 className="font-display font-bold text-3xl md:text-4xl text-white/70 group-hover/item:text-white mt-1 transition-colors duration-300 leading-[1.1] drop-shadow-sm group-hover/item:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">I LEARNED ATTENTION.</h2>
+                </div>
               </div>
-            </div>
 
-            <div ref={p2Close} className="absolute inset-0 px-16 flex flex-col justify-center items-start text-left will-change-transform">
-              <h2 className="pinned-h2 text-[3.5rem] leading-[1.1] text-white">IDEAS ARE GOOD.<br />RESULTS ARE BETTER.</h2>
-            </div>
-
-            <div ref={p2AdsContainer} className="absolute inset-0 px-6 sm:px-12 py-10 flex flex-col justify-start items-start text-left will-change-transform overflow-hidden pointer-events-none">
-              <div ref={p2AdsScroll} className="w-full flex flex-col gap-6 pt-[80vh] pb-[20vh] will-change-transform">
-                
-                <h3 className="text-2xl sm:text-3xl font-display font-bold text-white mb-2 leading-tight">
-                  Footwear Brand —<br/><span className="text-accent">Google Ads Sales Campaign</span>
-                </h3>
-                
-                <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 shadow-2xl backdrop-blur-md">
-                  <h4 className="text-accent text-xs font-bold tracking-widest uppercase mb-6">Campaign Performance</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-8 gap-x-4">
-                    <div><div className="text-white/50 text-[10px] uppercase tracking-widest mb-1">Ad Spend</div><div className="text-white font-display text-xl sm:text-2xl font-bold">₹1,50,000</div></div>
-                    <div><div className="text-white/50 text-[10px] uppercase tracking-widest mb-1">Clicks</div><div className="text-white font-display text-xl sm:text-2xl font-bold">8,500</div></div>
-                    <div><div className="text-white/50 text-[10px] uppercase tracking-widest mb-1">Purchases</div><div className="text-white font-display text-xl sm:text-2xl font-bold">525</div></div>
-                    <div><div className="text-white/50 text-[10px] uppercase tracking-widest mb-1">Cost/Purchase</div><div className="text-white font-display text-xl sm:text-2xl font-bold">₹286</div></div>
-                    <div><div className="text-white/50 text-[10px] uppercase tracking-widest mb-1">CPC</div><div className="text-white font-display text-xl sm:text-2xl font-bold">₹17.65</div></div>
-                    <div><div className="text-white/50 text-[10px] uppercase tracking-widest mb-1">Purchase Rate</div><div className="text-white font-display text-xl sm:text-2xl font-bold">6.18%</div></div>
-                    <div><div className="text-white/50 text-[10px] uppercase tracking-widest mb-1">AOV</div><div className="text-white font-display text-xl sm:text-2xl font-bold">₹1,100</div></div>
-                    <div className="col-span-2 sm:col-span-1"><div className="text-white/50 text-[10px] uppercase tracking-widest mb-1">Revenue</div><div className="text-accent font-display text-xl sm:text-2xl font-bold">₹5,77,500</div></div>
-                    <div><div className="text-white/50 text-[10px] uppercase tracking-widest mb-1">ROAS</div><div className="text-green-400 font-display text-xl sm:text-2xl font-bold">3.85×</div></div>
+              {/* Point 2 */}
+              <div className="flex gap-6 timeline-item group/item cursor-pointer transition-all duration-300 hover:scale-105 origin-left">
+                <div className="flex flex-col items-center">
+                  <div className="relative flex items-center justify-center w-6 h-6 mt-1.5">
+                    <div className="absolute inset-0 rounded-full bg-white/5 group-hover/item:bg-accent/20 group-hover/item:animate-ping transition-all duration-300" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-white/40 group-hover/item:bg-accent group-hover/item:shadow-[0_0_15px_rgba(232,80,28,1)] transition-all duration-300 relative z-10" />
+                  </div>
+                  <div className="relative w-[2px] h-20 bg-white/10 mt-1.5 rounded-full overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-full bg-accent shadow-[0_0_10px_rgba(232,80,28,1)] timeline-line transition-transform duration-75" />
                   </div>
                 </div>
-
-                <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 shadow-2xl backdrop-blur-md">
-                  <h4 className="text-accent text-xs font-bold tracking-widest uppercase mb-4">Quick Calculation</h4>
-                  <div className="flex flex-col gap-3 font-mono text-sm">
-                    <div className="text-white/70 flex flex-wrap gap-2 items-center">
-                      525 Purchases <span className="text-white/30">×</span> ₹1,100 AOV <span className="text-white/30">=</span> <span className="text-white font-bold text-base bg-white/10 px-2 py-1 rounded">₹5,77,500 Revenue</span>
-                    </div>
-                    <div className="text-white/70 flex flex-wrap gap-2 items-center">
-                      ₹5,77,500 <span className="text-white/30">÷</span> ₹1,50,000 Ad Spend <span className="text-white/30">=</span> <span className="text-green-400 font-bold text-base bg-green-400/10 px-2 py-1 rounded">3.85× ROAS</span>
-                    </div>
-                  </div>
+                <div className="pb-8 pt-1">
+                  <div className="text-[11px] md:text-sm font-bold tracking-[0.2em] text-white/50 group-hover/item:text-accent transition-colors duration-300">SOCIAL MEDIA MANAGER</div>
+                  <h2 className="font-display font-bold text-3xl md:text-4xl text-white/70 group-hover/item:text-white mt-1 transition-colors duration-300 leading-[1.1] drop-shadow-sm group-hover/item:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">I LEARNED RESPONSIBILITY.</h2>
+                  <div className="text-[11px] md:text-xs font-bold tracking-widest text-white/40 group-hover/item:text-accent mt-3 transition-colors duration-300">50+ BRANDS</div>
                 </div>
-
-                <div className="w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 mt-2 relative bg-[#1E1E1E]">
-                  {/* Google Ads Result Image */}
-                  <img 
-                    src="/google-ads-result.png" 
-                    alt="Google Ads Result" 
-                    className="w-full h-auto object-cover border-b border-white/10"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling!.classList.remove('hidden');
-                    }}
-                  />
-                  <div className="hidden w-full h-48 flex items-center justify-center text-white/30 text-sm italic font-mono border-b border-white/10">
-                    [Place your image as /public/google-ads-result.png]
-                  </div>
-                  
-                  {/* Short Summary attached below the image */}
-                  <div className="p-5 bg-gradient-to-b from-transparent to-black/40">
-                    <h4 className="text-accent text-[10px] font-bold tracking-widest uppercase mb-2">Short Summary</h4>
-                    <p className="text-white/80 leading-relaxed text-sm">
-                      Generated <strong className="text-white">525 purchases</strong> with ₹1.5L ad spend, delivering <strong className="text-white">₹5.77L</strong> in estimated revenue at a <strong className="text-green-400">3.85× ROAS</strong> and ₹286 cost per purchase.
-                    </p>
-                  </div>
-                </div>
-
               </div>
-            </div>
 
+              {/* Point 3 */}
+              <div className="flex gap-6 timeline-item group/item cursor-pointer transition-all duration-300 hover:scale-105 origin-left">
+                <div className="flex flex-col items-center">
+                  <div className="relative flex items-center justify-center w-6 h-6 mt-1.5">
+                    <div className="absolute inset-0 rounded-full bg-white/5 group-hover/item:bg-accent/20 group-hover/item:animate-ping transition-all duration-300" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-white/40 group-hover/item:bg-accent group-hover/item:shadow-[0_0_15px_rgba(232,80,28,1)] transition-all duration-300 relative z-10" />
+                  </div>
+                </div>
+                <div className="pt-1">
+                  <div className="text-[11px] md:text-sm font-bold tracking-[0.2em] text-white/50 group-hover/item:text-accent transition-colors duration-300">PERFORMANCE MARKETER</div>
+                  <h2 className="font-display font-bold text-3xl md:text-4xl text-white/70 group-hover/item:text-white mt-1 transition-colors duration-300 leading-[1.1] drop-shadow-sm group-hover/item:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">I LEARNED ACCOUNTABILITY.</h2>
+                  <div className="text-[11px] md:text-xs font-bold tracking-widest text-white/40 group-hover/item:text-accent mt-3 transition-colors duration-300">20+ PERFORMANCE BRANDS</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        {/* TRANSITION TEXT */}
+        <div ref={contentToConversionRef} className="safe-center will-change-transform z-10 mt-[30vh]">
+          <h2 className="story-h2 text-center text-2xl md:text-4xl lg:text-[2.75rem] flex flex-wrap justify-center gap-3">
+            <span className="conv-word drop-shadow-md">THAT&apos;S WHEN</span>
+            <span className="conv-word text-white/50 drop-shadow-md">CONTENT</span>
+            <span className="conv-word drop-shadow-md">BECAME</span>
+            <span className="conv-word accent drop-shadow-md">CONVERSION.</span>
+          </h2>
+        </div>
+
+        <div ref={hardPartRef} className="safe-left will-change-transform z-10">
+          <div className="-mt-24 md:-mt-40">
+            <div className="story-label">PERFORMANCE MARKETING</div>
+            <h2 className="story-h2">ANYONE CAN<br />LAUNCH AN AD.</h2>
+            <p className="story-p text-2xl font-bold mt-4">THE HARD PART<br/>STARTS AFTER<br/>THE CLICK.</p>
+          </div>
+        </div>
+
+        <div ref={funnelRef} className="safe-right will-change-transform z-10 pointer-auto">
+          <div className="flex flex-col gap-4 items-end w-full">
+            <div className="funnel-step ios-notification group cursor-default">
+              <span className="font-display font-bold text-xl md:text-2xl text-white/60 group-hover:text-white transition-colors">ATTENTION</span>
+              <span className="text-sm bg-white/10 rounded-full w-8 h-8 flex shrink-0 items-center justify-center group-hover:bg-accent group-hover:text-white transition-colors">↓</span>
+            </div>
+            <div className="funnel-step ios-notification group cursor-default">
+              <span className="font-display font-bold text-xl md:text-2xl text-white/60 group-hover:text-white transition-colors">CLICK</span>
+              <span className="text-sm bg-white/10 rounded-full w-8 h-8 flex shrink-0 items-center justify-center group-hover:bg-accent group-hover:text-white transition-colors">↓</span>
+            </div>
+            <div className="funnel-step ios-notification group cursor-default">
+              <span className="font-display font-bold text-xl md:text-2xl text-white/60 group-hover:text-white transition-colors">LANDING PAGE</span>
+              <span className="text-sm bg-white/10 rounded-full w-8 h-8 flex shrink-0 items-center justify-center group-hover:bg-accent group-hover:text-white transition-colors">↓</span>
+            </div>
+            <div className="funnel-step ios-notification group cursor-default">
+              <span className="font-display font-bold text-xl md:text-2xl text-white/60 group-hover:text-white transition-colors">LEAD / PURCHASE</span>
+              <span className="text-sm bg-white/10 rounded-full w-8 h-8 flex shrink-0 items-center justify-center group-hover:bg-accent group-hover:text-white transition-colors">↓</span>
+            </div>
+            <div className="funnel-step ios-notification group cursor-default" style={{ borderColor: 'rgba(232,80,28,0.3)' }}>
+              <span className="font-display font-bold text-xl md:text-2xl text-accent group-hover:text-white transition-colors">REVENUE</span>
+              <span className="text-lg bg-accent/20 text-accent rounded-full w-10 h-10 flex shrink-0 items-center justify-center group-hover:bg-accent group-hover:text-white transition-colors">$$</span>
+            </div>
+          </div>
+        </div>
+
+        <div ref={metaRef} className="safe-left will-change-transform z-10">
+          <div className="-mt-16 md:-mt-24 pointer-events-auto">
+            <h2 className="story-h2">META ADS</h2>
+            <div className="story-label">DEMAND CREATION</div>
+            <p className="story-p mb-8 font-bold">People aren&apos;t always looking for you.<br/>You create the reason to stop.</p>
+            <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm font-bold tracking-widest text-white/60 uppercase">
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Lead Generation</div>
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Sales</div>
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Retargeting</div>
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Creative Testing</div>
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Audience Strategy</div>
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Scaling</div>
+            </div>
+            <div className="mt-8 flex">
+              <div className="cta-btn cursor-pointer">SEE RESULTS →</div>
+            </div>
+          </div>
+        </div>
+
+        <div ref={googleRef} className="safe-left will-change-transform z-10">
+          <div className="-mt-16 md:-mt-24 pointer-events-auto">
+            <h2 className="story-h2">GOOGLE ADS</h2>
+            <div className="story-label">DEMAND CAPTURE</div>
+            <p className="story-p mb-8 font-bold">People are already searching.<br/>You show up at the right moment.</p>
+            <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm font-bold tracking-widest text-white/60 uppercase">
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Search</div>
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Performance Max</div>
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Shopping</div>
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Call Campaigns</div>
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Keyword Strategy</div>
+              <div className="flex items-center gap-2"><span className="text-accent text-xs">▹</span> Conversion Tracking</div>
+            </div>
+            <div className="mt-8 flex">
+              <div className="cta-btn cursor-pointer">SEE RESULTS →</div>
+            </div>
+          </div>
+        </div>
+
+        <div ref={numbersRef} className="safe-center will-change-transform z-10 w-full h-full p-0 m-0 relative">
+          <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 p-8 md:p-24 gap-4">
+            <div className="flex flex-col justify-center items-center">
+              <div className="giant-number text-accent">4+</div>
+              <div className="number-label">YEARS</div>
+            </div>
+            <div className="flex flex-col justify-center items-center">
+              <div className="giant-number">50+</div>
+              <div className="number-label">BRANDS MANAGED</div>
+            </div>
+            <div className="flex flex-col justify-center items-center">
+              <div className="giant-number">20+</div>
+              <div className="number-label">PERFORMANCE BRANDS</div>
+            </div>
+            <div className="flex flex-col justify-center items-center">
+              <div className="giant-number text-accent">₹5L+</div>
+              <div className="number-label">MONTHLY AD SPEND</div>
+            </div>
           </div>
         </div>
 
         {/* ══════════════════════════════════════════════════════════════
-            PHASE 3: WORK & CTA (73 - 239)
+            CHAPTER 3: PHONE / COMMUNICATION (Frames 160-240)
             ══════════════════════════════════════════════════════════════ */}
-        <div ref={p3StrategyRef} className="frame-overlay fo-content fo-top-left will-change-transform">
-          <div ref={p3S1} className="absolute top-32 left-16 strategy-phrase">THE CREATIVE GETS THE CLICK.</div>
-          <div ref={p3S2} className="absolute top-48 left-16 strategy-phrase">DATA GUIDES THE WAY.</div>
-          <div ref={p3S3} className="absolute top-64 left-16 strategy-phrase accent">PERFORMANCE SCALES THE BUSINESS.</div>
+        <div ref={enoughAboutMeRef} className="safe-center will-change-transform z-10">
+          <div className="story-label">REAL CAMPAIGNS</div>
+          <h2 className="giant-number text-[8rem]">ENOUGH<br/>ABOUT ME.</h2>
+          <h3 className="story-h2 mt-8 text-accent">LET&apos;S TALK<br/>ABOUT THE MONEY.</h3>
+          <p className="story-p mt-4 font-bold">Real campaigns. Real decisions. Real outcomes.</p>
         </div>
 
-        <div ref={p3CasesRef} className="frame-overlay fo-content fo-top-left will-change-transform">
-          <h3 className="font-body text-xs font-semibold tracking-[0.2em] uppercase text-white/50 mb-8">SELECTED CASE STUDIES</h3>
-          <div className="case-study-compact">
-            <div className="case-study-title">E-Commerce Scale-Up</div>
-            <div className="case-study-desc">Meta Ads campaign restructuring resulting in 3x ROAS and 45% reduction in CPA for a luxury fashion brand.</div>
-          </div>
-          <div className="case-study-compact">
-            <div className="case-study-title">B2B Lead Generation</div>
-            <div className="case-study-desc">Google Ads Search & Performance Max strategy delivering 150+ highly qualified leads per month.</div>
-          </div>
-          <div className="case-study-compact">
-            <div className="case-study-title">Social Community Growth</div>
-            <div className="case-study-desc">Organic social strategy across 3 platforms driving 2M+ organic impressions and 15k new followers in 90 days.</div>
+        <div ref={caseStudyRef} className="absolute inset-0 overflow-hidden z-20 pointer-events-none">
+          <div className="cs-scroll absolute top-full left-0 w-full flex flex-col pt-[50vh] pb-[50vh] will-change-transform pointer-auto">
+            
+            {/* Case Study Block */}
+            <div className="w-full max-w-5xl mx-auto px-6 mb-32">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div className="space-y-16">
+                  <div>
+                    <div className="story-label">STEP 01</div>
+                    <h2 className="story-h2 text-3xl">FOOTWEAR<br/>E-COMMERCE</h2>
+                  </div>
+                  <div>
+                    <div className="story-label">THE PROBLEM</div>
+                    <p className="story-p text-xl font-bold">Traffic was coming in.<br/>The numbers weren&apos;t adding up.</p>
+                  </div>
+                  <div>
+                    <div className="story-label">THE RESULT</div>
+                    <div className="space-y-6">
+                      <div><div className="text-4xl font-display font-bold">525</div><div className="text-xs font-bold tracking-widest text-accent uppercase">Purchases</div></div>
+                      <div><div className="text-4xl font-display font-bold">₹5.77L</div><div className="text-xs font-bold tracking-widest text-accent uppercase">Revenue</div></div>
+                      <div><div className="text-5xl font-display font-bold text-green-400">3.85X</div><div className="text-xs font-bold tracking-widest text-green-400 uppercase">ROAS</div></div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-2 shadow-2xl backdrop-blur-md relative overflow-hidden group">
+                    <img src="/google-ads-result.png" alt="Google Ads Proof" className="w-full rounded-xl" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling!.classList.remove('hidden'); }} />
+                    <div className="hidden w-full h-64 flex items-center justify-center text-white/30 text-sm italic border border-dashed border-white/20 rounded-xl">
+                      [google-ads-result.png]
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        <div ref={p3PhoneCtaRef} className="frame-overlay fo-content fo-left will-change-transform">
-          <h2 ref={p3P1} className="cta-h2 absolute bottom-32 left-16">GOT A PROJECT<br />IN MIND?</h2>
-          <h2 ref={p3P2} className="cta-h2 absolute bottom-32 left-16 accent">LET&apos;S TALK<br />ABOUT GROWTH.</h2>
+        <div ref={strategyRef} className="safe-center will-change-transform z-10">
+          <h2 className="story-h2 text-5xl">THE AD<br/>ISN&apos;T ALWAYS<br/>THE PROBLEM.</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12 text-left">
+            <div>
+              <div className="story-label">OFFER</div>
+              <p className="font-bold text-white/80">Is there a reason to buy?</p>
+            </div>
+            <div>
+              <div className="story-label">MESSAGE</div>
+              <p className="font-bold text-white/80">Is the value obvious?</p>
+            </div>
+            <div>
+              <div className="story-label">TRAFFIC</div>
+              <p className="font-bold text-white/80">Are we reaching the right people?</p>
+            </div>
+          </div>
+          <div className="mt-16 text-2xl font-display font-bold text-accent uppercase">
+            GOOD PERFORMANCE<br/>STARTS BEFORE<br/>ADS MANAGER.
+          </div>
         </div>
 
-        <div ref={p3FinalCtaRef} className="frame-overlay fo-content fo-bottom pointer-auto will-change-transform">
+        <div ref={campaignSystemRef} className="safe-left will-change-transform z-10">
+          <h2 className="story-h2 text-3xl mb-12">BEFORE I SPEND ₹1...</h2>
+          <div className="relative pl-8 border-l border-white/20 space-y-12">
+            <div className="system-step relative">
+              <div className="absolute w-3 h-3 bg-accent rounded-full -left-[38.5px] top-2"></div>
+              <div className="story-label mb-1">01 UNDERSTAND</div>
+              <div className="text-sm font-bold text-white/50">Business • Offer • Audience • Competition</div>
+            </div>
+            <div className="system-step relative">
+              <div className="absolute w-3 h-3 bg-accent rounded-full -left-[38.5px] top-2"></div>
+              <div className="story-label mb-1">02 BUILD</div>
+              <div className="text-sm font-bold text-white/50">Tracking • Campaign structure • Creatives • Keywords</div>
+            </div>
+            <div className="system-step relative">
+              <div className="absolute w-3 h-3 bg-accent rounded-full -left-[38.5px] top-2"></div>
+              <div className="story-label mb-1">03 TEST</div>
+              <div className="text-sm font-bold text-white/50">Creative • Audience • Copy • Intent</div>
+            </div>
+            <div className="system-step relative">
+              <div className="absolute w-3 h-3 bg-accent rounded-full -left-[38.5px] top-2"></div>
+              <div className="story-label mb-1">04 OPTIMIZE</div>
+              <div className="text-sm font-bold text-white/50">Cut waste. Push winners.</div>
+            </div>
+            <div className="system-step relative">
+              <div className="absolute w-3 h-3 bg-accent rounded-full -left-[38.5px] top-2"></div>
+              <div className="story-label mb-1">05 SCALE</div>
+              <div className="text-sm font-bold text-white/50">Only when the numbers make sense.</div>
+            </div>
+          </div>
+        </div>
+
+        <div ref={metricsRef} className="safe-right will-change-transform z-10 text-right">
+          <h2 className="story-h2 text-3xl mb-12">I DON&apos;T OPTIMIZE<br/>FOR PRETTY<br/>DASHBOARDS.</h2>
+          <div className="space-y-6">
+            <div className="metric-step flex items-center justify-end gap-4"><span className="text-sm text-white/50 font-bold">Does the ad earn attention?</span> <span className="font-display font-bold text-2xl text-accent w-16 text-right">CTR</span></div>
+            <div className="metric-step flex items-center justify-end gap-4"><span className="text-sm text-white/50 font-bold">Are we paying too much?</span> <span className="font-display font-bold text-2xl text-accent w-16 text-right">CPC</span></div>
+            <div className="metric-step flex items-center justify-end gap-4"><span className="text-sm text-white/50 font-bold">Does traffic convert?</span> <span className="font-display font-bold text-2xl text-accent w-16 text-right">CVR</span></div>
+            <div className="metric-step flex items-center justify-end gap-4"><span className="text-sm text-white/50 font-bold">What does one acquisition cost?</span> <span className="font-display font-bold text-2xl text-accent w-16 text-right">CPA</span></div>
+            <div className="metric-step flex items-center justify-end gap-4"><span className="text-sm text-white/50 font-bold">Does the spend make money?</span> <span className="font-display font-bold text-2xl text-green-400 w-16 text-right">ROAS</span></div>
+          </div>
+        </div>
+
+        <div ref={yearsLaterRef} className="safe-center will-change-transform z-10">
+          <div className="story-label mb-12">4+ YEARS LATER</div>
+          <div className="space-y-8 font-display font-bold text-3xl md:text-5xl uppercase tracking-tighter leading-none">
+            <div className="text-white/30">I STARTED BY<br/>LEARNING HOW<br/>PEOPLE SCROLL.</div>
+            <div className="text-white/60">I LEARNED<br/>WHY THEY CLICK.</div>
+            <div className="text-white">NOW I FOCUS ON<br/>WHY THEY BUY.</div>
+          </div>
+          <div className="mt-16 flex flex-wrap justify-center gap-6 text-[10px] font-bold tracking-widest text-accent uppercase">
+            <span>4+ Years</span> • <span>50+ Brands</span> • <span>20+ Perf Brands</span> • <span>₹5L+ Ad Spend</span>
+          </div>
+        </div>
+
+        <div ref={finalCtaRef} className="absolute inset-0 bg-black/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center will-change-transform px-6">
+          <div className="story-label text-white/50">SO...</div>
+          <h2 className="giant-number text-[12vw] mb-4 text-center">WHAT ARE WE<br/>GROWING?</h2>
+          <p className="story-p text-center mb-12">Have a product, service or business that needs better paid acquisition?</p>
           
-          {/* Background text on the right */}
-          <h2 
-            className="absolute inset-y-0 right-8 md:right-24 flex flex-col items-end justify-center text-[8vw] sm:text-[6vw] leading-[0.85] font-display font-black text-white text-right uppercase tracking-tighter -z-10 select-none pointer-events-none" 
-            style={{ 
-              transform: 'translateZ(-100px)'
-            }}
-          >
-            <span>READY</span>
-            <span>WHEN</span>
-            <span>YOU ARE</span>
-          </h2>
-
-          <div className="flex flex-row justify-center items-center gap-4 w-full max-w-full overflow-x-auto pb-4 no-scrollbar relative z-10">
-            <a href="https://wa.me/917666401860" target="_blank" rel="noreferrer" className="glass-pill whitespace-nowrap">
-              <FaWhatsapp size={18} />
-              +91 7666401860
-            </a>
-            <a href="mailto:myselfgauravkamble@gmail.com" className="glass-pill whitespace-nowrap">
-              <FaEnvelope size={18} />
-              myselfgauravkamble@gmail.com
-            </a>
-            <a href="https://www.linkedin.com/in/gaurav-kamble-3b3851273/" target="_blank" rel="noreferrer" className="glass-pill whitespace-nowrap">
-              <FaLinkedin size={18} />
-              LinkedIn
-            </a>
-            <a href="https://www.instagram.com/iamgauravkamble/" target="_blank" rel="noreferrer" className="glass-pill whitespace-nowrap">
-              <FaInstagram size={18} />
-              Instagram
-            </a>
-            <a href="https://www.facebook.com/iamgauravkamble" target="_blank" rel="noreferrer" className="glass-pill whitespace-nowrap">
-              <FaFacebook size={18} />
-              Facebook
-            </a>
+          <div className="flex flex-wrap justify-center gap-4 pointer-auto">
+            <a href="mailto:myselfgauravkamble@gmail.com" className="cta-btn">LET&apos;S TALK →</a>
+            <a href="https://linkedin.com/in/gaurav-kamble-3b3851273/" target="_blank" rel="noreferrer" className="cta-btn">VIEW LINKEDIN →</a>
           </div>
         </div>
 
