@@ -23,6 +23,15 @@ export default function ScrollFrameSequence() {
 
   const [loadPercent, setLoadPercent] = useState(0);
   const [ready, setReady] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+
+  const triggerShock = useCallback(() => {
+    setClickCount((prev) => {
+      if (prev >= 1) return prev;
+      setTimeout(() => setClickCount(0), 4000);
+      return 1;
+    });
+  }, []);
 
   // ── REFS FOR STORY BLOCKS ──
   // Chapter 1: Portrait (0-80)
@@ -42,6 +51,7 @@ export default function ScrollFrameSequence() {
 
   // Chapter 3: Phone (165-240)
   const enoughAboutMeRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const caseStudyRef = useRef<HTMLDivElement>(null);
   const strategyRef = useRef<HTMLDivElement>(null);
   const campaignSystemRef = useRef<HTMLDivElement>(null);
@@ -167,11 +177,7 @@ export default function ScrollFrameSequence() {
 
       // ── CHAPTER 3: PHONE (165 - 240) ──
       setStyles(enoughAboutMeRef, 165, 5, 10, 5);
-      setStyles(caseStudyRef, 175, 10, 10, 5);
-      setStyles(strategyRef, 195, 5, 10, 5);
-      setStyles(campaignSystemRef, 205, 5, 10, 5);
-      setStyles(metricsRef, 210, 5, 10, 5);
-      setStyles(yearsLaterRef, 220, 5, 10, 5);
+      setStyles(notificationsRef, 165, 5, 65, 5);
       
       // Final CTA stays visible till end of scroll (frame 240+)
       setStyles(finalCtaRef, 230, 5, 10, 0);
@@ -214,22 +220,31 @@ export default function ScrollFrameSequence() {
         e.style.transition = "all 0.3s ease-out";
       });
 
-      // Campaign System Steps
-      document.querySelectorAll('.system-step').forEach((el, i) => {
-        const start = 205 + i * 1.5;
+      // Notifications Popup Sequence (Stacking & Fading)
+      document.querySelectorAll('.notif-popup').forEach((el, i) => {
+        const start = 168 + i * 8; // Spread out even more (8 frames per popup)
         const e = el as HTMLElement;
-        e.style.opacity = frameIndex >= start ? "1" : "0";
-        e.style.transform = frameIndex >= start ? "translateY(0)" : "translateY(10px)";
-        e.style.transition = "all 0.3s ease-out";
-      });
-
-      // Metrics Thinking
-      document.querySelectorAll('.metric-step').forEach((el, i) => {
-        const start = 210 + i * 1.5;
-        const e = el as HTMLElement;
-        e.style.opacity = frameIndex >= start ? "1" : "0";
-        e.style.transform = frameIndex >= start ? "translateY(0)" : "translateY(10px)";
-        e.style.transition = "all 0.3s ease-out";
+        
+        if (frameIndex < start) {
+          e.style.opacity = "0";
+          e.style.transform = "translateY(100px) scale(0.9)";
+        } else if (frameIndex >= start && frameIndex < start + 8) {
+          e.style.opacity = "1";
+          e.style.transform = "translateY(0) scale(1)";
+        } else if (frameIndex >= start + 8 && frameIndex < start + 16) {
+          e.style.opacity = "0.85";
+          e.style.transform = "translateY(-110px) scale(0.95)";
+        } else if (frameIndex >= start + 16 && frameIndex < start + 24) {
+          e.style.opacity = "0.4";
+          e.style.transform = "translateY(-220px) scale(0.9)";
+        } else if (frameIndex >= start + 24 && frameIndex < start + 32) {
+          e.style.opacity = "0";
+          e.style.transform = "translateY(-330px) scale(0.85)";
+        } else {
+          e.style.opacity = "0";
+          e.style.transform = "translateY(-330px) scale(0.85)";
+        }
+        e.style.transition = "all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s ease-in-out";
       });
       
       // Case Study Inner Progress
@@ -264,6 +279,31 @@ export default function ScrollFrameSequence() {
         img.onerror = () => { framesRef.current[index] = img; resolve(); };
       });
 
+    let currentX = typeof window !== "undefined" ? window.innerWidth / 2 : 0;
+    let currentY = typeof window !== "undefined" ? window.innerHeight / 2 : 0;
+    let targetX = currentX;
+    let targetY = currentY;
+    let cursorRafId = 0;
+
+    const lerp = (start: number, end: number, factor: number) => {
+      return start + (end - start) * factor;
+    };
+
+    const updateCursor = () => {
+      currentX = lerp(currentX, targetX, 0.1);
+      currentY = lerp(currentY, targetY, 0.1);
+      
+      document.body.style.setProperty('--mouse-x', `${currentX}px`);
+      document.body.style.setProperty('--mouse-y', `${currentY}px`);
+      
+      cursorRafId = requestAnimationFrame(updateCursor);
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      targetX = e.clientX;
+      targetY = e.clientY;
+    };
+
     const preload = async () => {
       let totalLoaded = 0;
       await loadSingleFrame(0);
@@ -290,15 +330,19 @@ export default function ScrollFrameSequence() {
     onResize();
     onScroll();
     void preload();
+    updateCursor();
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
 
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafId);
+      cancelAnimationFrame(cursorRafId);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("mousemove", onMouseMove);
     };
   }, [drawFrame]);
 
@@ -502,22 +546,29 @@ export default function ScrollFrameSequence() {
         </div>
 
         <div ref={numbersRef} className="safe-center will-change-transform z-10 w-full h-full p-0 m-0 relative">
-          <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 p-8 md:p-24 gap-4">
-            <div className="flex flex-col justify-center items-center">
-              <div className="giant-number text-accent">4+</div>
-              <div className="number-label">YEARS</div>
+          <div className="absolute inset-0 w-full h-full pointer-events-none">
+            {/* Top Left */}
+            <div className="absolute top-[10%] lg:top-[15%] left-[5%] lg:left-[10%] flex flex-col gap-2 items-start">
+              <div className="font-display font-bold text-7xl md:text-8xl lg:text-9xl leading-none tracking-tighter text-white drop-shadow-2xl">4+</div>
+              <div className="number-label text-left mt-2">YEARS</div>
             </div>
-            <div className="flex flex-col justify-center items-center">
-              <div className="giant-number">50+</div>
-              <div className="number-label">BRANDS MANAGED</div>
+            
+            {/* Top Right */}
+            <div className="absolute top-[10%] lg:top-[15%] right-[5%] lg:right-[10%] flex flex-col gap-2 items-end text-right">
+              <div className="font-display font-bold text-7xl md:text-8xl lg:text-9xl leading-none tracking-tighter text-white drop-shadow-2xl">50+</div>
+              <div className="number-label text-right mt-2">BRANDS<br />MANAGED</div>
             </div>
-            <div className="flex flex-col justify-center items-center">
-              <div className="giant-number">20+</div>
-              <div className="number-label">PERFORMANCE BRANDS</div>
+            
+            {/* Bottom Left */}
+            <div className="absolute bottom-[10%] lg:bottom-[15%] left-[5%] lg:left-[10%] flex flex-col gap-2 items-start">
+              <div className="font-display font-bold text-7xl md:text-8xl lg:text-9xl leading-none tracking-tighter text-white drop-shadow-2xl">20+</div>
+              <div className="number-label text-left mt-2">PERFORMANCE<br />BRANDS</div>
             </div>
-            <div className="flex flex-col justify-center items-center">
-              <div className="giant-number text-accent">₹5L+</div>
-              <div className="number-label">MONTHLY AD SPEND</div>
+            
+            {/* Bottom Right */}
+            <div className="absolute bottom-[10%] lg:bottom-[15%] right-[5%] lg:right-[10%] flex flex-col gap-2 items-end text-right">
+              <div className="font-display font-bold text-7xl md:text-8xl lg:text-9xl leading-none tracking-tighter text-white drop-shadow-2xl">₹5L+</div>
+              <div className="number-label text-right mt-2">MONTHLY<br />AD SPEND</div>
             </div>
           </div>
         </div>
@@ -525,129 +576,90 @@ export default function ScrollFrameSequence() {
         {/* ══════════════════════════════════════════════════════════════
             CHAPTER 3: PHONE / COMMUNICATION (Frames 160-240)
             ══════════════════════════════════════════════════════════════ */}
-        <div ref={enoughAboutMeRef} className="safe-center will-change-transform z-10">
-          <div className="story-label">REAL CAMPAIGNS</div>
-          <h2 className="giant-number text-[8rem]">ENOUGH<br/>ABOUT ME.</h2>
-          <h3 className="story-h2 mt-8 text-accent">LET&apos;S TALK<br/>ABOUT THE MONEY.</h3>
-          <p className="story-p mt-4 font-bold">Real campaigns. Real decisions. Real outcomes.</p>
+        <div ref={enoughAboutMeRef} className="absolute inset-0 flex flex-col justify-center items-start pb-[20vh] pl-6 md:pl-[4vw] lg:pl-[6vw] will-change-transform z-10 text-left pointer-events-none">
+          <div className="story-label mb-3">REAL CAMPAIGNS</div>
+          <h2 className="font-display font-black text-5xl md:text-[5rem] lg:text-[6rem] leading-[0.85] tracking-tighter text-white/40 uppercase drop-shadow-2xl mix-blend-screen">ENOUGH<br/>ABOUT ME.</h2>
+          <h3 className="font-display font-bold text-2xl md:text-4xl lg:text-[3rem] leading-[0.9] tracking-tight text-accent mt-4 drop-shadow-lg">LET&apos;S TALK<br/>ABOUT THE MONEY.</h3>
+          <p className="font-body text-xs md:text-sm font-bold text-white/70 mt-6 tracking-widest uppercase">Real campaigns. Real decisions. Real outcomes.</p>
         </div>
-
-        <div ref={caseStudyRef} className="absolute inset-0 overflow-hidden z-20 pointer-events-none">
-          <div className="cs-scroll absolute top-full left-0 w-full flex flex-col pt-[50vh] pb-[50vh] will-change-transform pointer-auto">
+          
+        {/* Notifications on the right side */}
+        <div ref={notificationsRef} className="absolute inset-0 pointer-events-none z-10 will-change-transform">
+          <div className="absolute right-4 md:right-[6vw] top-1/2 -translate-y-1/2 w-[85vw] max-w-sm md:w-[26rem] h-32 hidden md:flex items-center justify-center">
             
-            {/* Case Study Block */}
-            <div className="w-full max-w-5xl mx-auto px-6 mb-32">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                <div className="space-y-16">
-                  <div>
-                    <div className="story-label">STEP 01</div>
-                    <h2 className="story-h2 text-3xl">FOOTWEAR<br/>E-COMMERCE</h2>
-                  </div>
-                  <div>
-                    <div className="story-label">THE PROBLEM</div>
-                    <p className="story-p text-xl font-bold">Traffic was coming in.<br/>The numbers weren&apos;t adding up.</p>
-                  </div>
-                  <div>
-                    <div className="story-label">THE RESULT</div>
-                    <div className="space-y-6">
-                      <div><div className="text-4xl font-display font-bold">525</div><div className="text-xs font-bold tracking-widest text-accent uppercase">Purchases</div></div>
-                      <div><div className="text-4xl font-display font-bold">₹5.77L</div><div className="text-xs font-bold tracking-widest text-accent uppercase">Revenue</div></div>
-                      <div><div className="text-5xl font-display font-bold text-green-400">3.85X</div><div className="text-xs font-bold tracking-widest text-green-400 uppercase">ROAS</div></div>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-2 shadow-2xl backdrop-blur-md relative overflow-hidden group">
-                    <img src="/google-ads-result.png" alt="Google Ads Proof" className="w-full rounded-xl" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling!.classList.remove('hidden'); }} />
-                    <div className="hidden w-full h-64 flex items-center justify-center text-white/30 text-sm italic border border-dashed border-white/20 rounded-xl">
-                      [google-ads-result.png]
-                    </div>
-                  </div>
-                </div>
+            <div className="notif-popup absolute w-full opacity-0 bg-white/10 backdrop-blur-2xl border border-white/20 p-5 md:p-6 rounded-[2rem] flex items-center gap-5 shadow-[0_30px_60px_rgba(0,0,0,0.3)]">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 shrink-0">
+                <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              </div>
+              <div>
+                <div className="text-white font-bold text-base md:text-lg leading-tight">Payment Received</div>
+                <div className="text-white/70 text-sm md:text-base mt-1 font-medium">₹24,500 via Stripe</div>
+              </div>
+            </div>
+            
+            <div className="notif-popup absolute w-full opacity-0 bg-white/10 backdrop-blur-2xl border border-white/20 p-5 md:p-6 rounded-[2rem] flex items-center gap-5 shadow-[0_30px_60px_rgba(0,0,0,0.3)]">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-accent/20 flex items-center justify-center text-accent shrink-0">
+                <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+              </div>
+              <div>
+                <div className="text-white font-bold text-base md:text-lg leading-tight">New Order #8921</div>
+                <div className="text-white/70 text-sm md:text-base mt-1 font-medium">2 items • Just now</div>
+              </div>
+            </div>
+
+            <div className="notif-popup absolute w-full opacity-0 bg-white/10 backdrop-blur-2xl border border-white/20 p-5 md:p-6 rounded-[2rem] flex items-center gap-5 shadow-[0_30px_60px_rgba(0,0,0,0.3)]">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              </div>
+              <div>
+                <div className="text-white font-bold text-base md:text-lg leading-tight">App Downloaded</div>
+                <div className="text-white/70 text-sm md:text-base mt-1 font-medium">iOS • New User</div>
+              </div>
+            </div>
+
+            <div className="notif-popup absolute w-full opacity-0 bg-white/10 backdrop-blur-2xl border border-white/20 p-5 md:p-6 rounded-[2rem] flex items-center gap-5 shadow-[0_30px_60px_rgba(0,0,0,0.3)]">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400 shrink-0">
+                <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+              </div>
+              <div>
+                <div className="text-white font-bold text-base md:text-lg leading-tight">Membership Upgraded</div>
+                <div className="text-white/70 text-sm md:text-base mt-1 font-medium">Pro Annual Plan</div>
+              </div>
+            </div>
+
+            <div className="notif-popup absolute w-full opacity-0 bg-white/10 backdrop-blur-2xl border border-white/20 p-5 md:p-6 rounded-[2rem] flex items-center gap-5 shadow-[0_30px_60px_rgba(0,0,0,0.3)]">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-accent/20 flex items-center justify-center text-accent shrink-0">
+                <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+              </div>
+              <div>
+                <div className="text-white font-bold text-base md:text-lg leading-tight">New Order #8922</div>
+                <div className="text-white/70 text-sm md:text-base mt-1 font-medium">1 item • Just now</div>
+              </div>
+            </div>
+            
+            <div className="notif-popup absolute w-full opacity-0 bg-white/10 backdrop-blur-2xl border border-white/20 p-5 md:p-6 rounded-[2rem] flex items-center gap-5 shadow-[0_30px_60px_rgba(0,0,0,0.3)]">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 shrink-0">
+                <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              </div>
+              <div>
+                <div className="text-white font-bold text-base md:text-lg leading-tight">Payment Received</div>
+                <div className="text-white/70 text-sm md:text-base mt-1 font-medium">₹12,000 via UPI</div>
               </div>
             </div>
 
           </div>
         </div>
 
-        <div ref={strategyRef} className="safe-center will-change-transform z-10">
-          <h2 className="story-h2 text-5xl">THE AD<br/>ISN&apos;T ALWAYS<br/>THE PROBLEM.</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12 text-left">
-            <div>
-              <div className="story-label">OFFER</div>
-              <p className="font-bold text-white/80">Is there a reason to buy?</p>
-            </div>
-            <div>
-              <div className="story-label">MESSAGE</div>
-              <p className="font-bold text-white/80">Is the value obvious?</p>
-            </div>
-            <div>
-              <div className="story-label">TRAFFIC</div>
-              <p className="font-bold text-white/80">Are we reaching the right people?</p>
-            </div>
-          </div>
-          <div className="mt-16 text-2xl font-display font-bold text-accent uppercase">
-            GOOD PERFORMANCE<br/>STARTS BEFORE<br/>ADS MANAGER.
-          </div>
-        </div>
+        <div ref={campaignSystemRef} className="hidden" />
+        <div ref={metricsRef} className="hidden" />
 
-        <div ref={campaignSystemRef} className="safe-left will-change-transform z-10">
-          <h2 className="story-h2 text-3xl mb-12">BEFORE I SPEND ₹1...</h2>
-          <div className="relative pl-8 border-l border-white/20 space-y-12">
-            <div className="system-step relative">
-              <div className="absolute w-3 h-3 bg-accent rounded-full -left-[38.5px] top-2"></div>
-              <div className="story-label mb-1">01 UNDERSTAND</div>
-              <div className="text-sm font-bold text-white/50">Business • Offer • Audience • Competition</div>
-            </div>
-            <div className="system-step relative">
-              <div className="absolute w-3 h-3 bg-accent rounded-full -left-[38.5px] top-2"></div>
-              <div className="story-label mb-1">02 BUILD</div>
-              <div className="text-sm font-bold text-white/50">Tracking • Campaign structure • Creatives • Keywords</div>
-            </div>
-            <div className="system-step relative">
-              <div className="absolute w-3 h-3 bg-accent rounded-full -left-[38.5px] top-2"></div>
-              <div className="story-label mb-1">03 TEST</div>
-              <div className="text-sm font-bold text-white/50">Creative • Audience • Copy • Intent</div>
-            </div>
-            <div className="system-step relative">
-              <div className="absolute w-3 h-3 bg-accent rounded-full -left-[38.5px] top-2"></div>
-              <div className="story-label mb-1">04 OPTIMIZE</div>
-              <div className="text-sm font-bold text-white/50">Cut waste. Push winners.</div>
-            </div>
-            <div className="system-step relative">
-              <div className="absolute w-3 h-3 bg-accent rounded-full -left-[38.5px] top-2"></div>
-              <div className="story-label mb-1">05 SCALE</div>
-              <div className="text-sm font-bold text-white/50">Only when the numbers make sense.</div>
-            </div>
-          </div>
-        </div>
+        <div ref={yearsLaterRef} className="hidden" />
 
-        <div ref={metricsRef} className="safe-right will-change-transform z-10 text-right">
-          <h2 className="story-h2 text-3xl mb-12">I DON&apos;T OPTIMIZE<br/>FOR PRETTY<br/>DASHBOARDS.</h2>
-          <div className="space-y-6">
-            <div className="metric-step flex items-center justify-end gap-4"><span className="text-sm text-white/50 font-bold">Does the ad earn attention?</span> <span className="font-display font-bold text-2xl text-accent w-16 text-right">CTR</span></div>
-            <div className="metric-step flex items-center justify-end gap-4"><span className="text-sm text-white/50 font-bold">Are we paying too much?</span> <span className="font-display font-bold text-2xl text-accent w-16 text-right">CPC</span></div>
-            <div className="metric-step flex items-center justify-end gap-4"><span className="text-sm text-white/50 font-bold">Does traffic convert?</span> <span className="font-display font-bold text-2xl text-accent w-16 text-right">CVR</span></div>
-            <div className="metric-step flex items-center justify-end gap-4"><span className="text-sm text-white/50 font-bold">What does one acquisition cost?</span> <span className="font-display font-bold text-2xl text-accent w-16 text-right">CPA</span></div>
-            <div className="metric-step flex items-center justify-end gap-4"><span className="text-sm text-white/50 font-bold">Does the spend make money?</span> <span className="font-display font-bold text-2xl text-green-400 w-16 text-right">ROAS</span></div>
-          </div>
-        </div>
-
-        <div ref={yearsLaterRef} className="safe-center will-change-transform z-10">
-          <div className="story-label mb-12">4+ YEARS LATER</div>
-          <div className="space-y-8 font-display font-bold text-3xl md:text-5xl uppercase tracking-tighter leading-none">
-            <div className="text-white/30">I STARTED BY<br/>LEARNING HOW<br/>PEOPLE SCROLL.</div>
-            <div className="text-white/60">I LEARNED<br/>WHY THEY CLICK.</div>
-            <div className="text-white">NOW I FOCUS ON<br/>WHY THEY BUY.</div>
-          </div>
-          <div className="mt-16 flex flex-wrap justify-center gap-6 text-[10px] font-bold tracking-widest text-accent uppercase">
-            <span>4+ Years</span> • <span>50+ Brands</span> • <span>20+ Perf Brands</span> • <span>₹5L+ Ad Spend</span>
-          </div>
-        </div>
-
-        <div ref={finalCtaRef} className="absolute inset-0 bg-black/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center will-change-transform px-6">
+        <div ref={finalCtaRef} className="absolute inset-0 bg-black/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center will-change-transform px-6 pointer-events-auto">
           <div className="story-label text-white/50">SO...</div>
-          <h2 className="giant-number text-[12vw] mb-4 text-center">WHAT ARE WE<br/>GROWING?</h2>
+          <h2 className="giant-number text-[12vw] mb-4 text-center cursor-default transition-transform duration-1000 hover:scale-[1.03]">
+            <span className="text-spotlight">WHAT ARE WE<br/>GROWING</span><span onClick={triggerShock} className={`text-spotlight inline-block cursor-pointer relative z-10 ${clickCount === 1 ? 'fall-down-animation' : ''}`}>?</span>
+          </h2>
           <p className="story-p text-center mb-12">Have a product, service or business that needs better paid acquisition?</p>
           
           <div className="flex flex-wrap justify-center gap-4 pointer-auto">

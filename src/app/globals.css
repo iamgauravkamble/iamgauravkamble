@@ -271,7 +271,7 @@ body {
   font-weight: 500;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: #fff;
   margin-top: 1rem;
 }
 
@@ -519,4 +519,31 @@ body {
 /* Utility for smooth opacity/transform transitions from JS */
 .will-change-transform {
   will-change: transform, opacity;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INTERACTIVE SPOTLIGHT EFFECTS
+   ══════════════════════════════════════════════════════════════ */
+.text-spotlight {
+  color: transparent;
+  background: radial-gradient(
+    circle 400px at var(--mouse-x, 50vw) var(--mouse-y, 50vh),
+    #ff8a5c 0%,
+    rgba(255, 255, 255, 1) 35%
+  );
+  background-attachment: fixed;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+@keyframes gravity-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  80% { transform: translateY(150vh) rotate(45deg); opacity: 0; }
+  99% { transform: translateY(150vh) rotate(45deg); opacity: 0; }
+  100% { transform: translateY(0) rotate(0deg); opacity: 1; }
+}
+
+.fall-down-animation {
+  display: inline-block;
+  animation: gravity-fall 4s forwards cubic-bezier(0.55, 0.085, 0.68, 0.53);
 }
